@@ -48,6 +48,36 @@ Promise.all([glbPromise, hdrPromise])
 
     scene.add(gltf.scene);
 
+    const rimTarget = new THREE.Object3D();
+rimTarget.position.set(0, 0, 0);
+scene.add(rimTarget);
+
+const rimLightLeft = new THREE.SpotLight(
+  0xffffff,
+  120,
+  0,
+  Math.PI / 5,
+  0.3,
+  2
+);
+
+rimLightLeft.position.set(-4, 3, -4);
+rimLightLeft.target = rimTarget;
+scene.add(rimLightLeft);
+
+const rimLightRight = new THREE.SpotLight(
+  0x8f5cff,
+  100,
+  0,
+  Math.PI / 5,
+  0.3,
+  2
+);
+
+rimLightRight.position.set(4, 2, -4);
+rimLightRight.target = rimTarget;
+scene.add(rimLightRight);
+
     gltf.scene.traverse((child) => {
       if (!child.isLight) return;
 
