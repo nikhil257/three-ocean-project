@@ -34,6 +34,21 @@ const hdrPromise = rgbeLoader.loadAsync(
   "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
 );
 
+let camera;
+let model;
+
+const mouse = {
+  x: 0,
+  y: 0,
+};
+
+const targetRotation = {
+  x: 0,
+  y: 0,
+};
+
+const clock = new THREE.Clock();
+
 Promise.all([glbPromise, hdrPromise])
   .then(([gltf, hdrTexture]) => {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -47,6 +62,17 @@ Promise.all([glbPromise, hdrPromise])
     pmremGenerator.dispose();
 
     scene.add(gltf.scene);
+
+    model = gltf.scene.getObjectByName("Curve");
+
+if (!model) {
+  console.error("Model mesh not found");
+  return;
+}
+
+model.userData.startY = model.position.y;
+model.userData.startRotationX = model.rotation.x;
+model.userData.startRotationY = model.rotation.y;
 
     const rimTarget = new THREE.Object3D();
 rimTarget.position.set(0, 0, 0);
@@ -108,8 +134,42 @@ scene.add(rimLightRight);
     console.error("Scene loading error:", error);
   });
 
+
+// MOUSE MOVEMENT
+window.addEventListener("mousemove", (event) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
+
+  const maxRotation = THREE.MathUtils.degToRad(30);
+
+  targetRotation.y = mouse.x * maxRotation;
+  targetRotation.x = mouse.y * maxRotation;
+});
+
 function animate() {
   requestAnimationFrame(animate);
+
+  if (model) {
+    const time = clock.getElapsedTime();
+
+    // Smooth Y-axis floating
+    model.position.y =
+      model.userData.startY +
+      Math.sin(time * 1.2) * 0.15;
+
+    // Smooth cursor rotation
+    model.rotation.x = THREE.MathUtils.lerp(
+      model.rotation.x,
+      model.userData.startRotationX + targetRotation.x,
+      0.05
+    );
+
+    model.rotation.y = THREE.MathUtils.lerp(
+      model.rotation.y,
+      model.userData.startRotationY + targetRotation.y,
+      0.05
+    );
+  }
 
   renderer.render(scene, camera);
 }
