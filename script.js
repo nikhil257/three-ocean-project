@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 7");
+console.log("THREE OCEAN VERSION 8");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -74,13 +74,17 @@ Promise.all([glbPromise, hdrPromise])
     }
 
     model.userData.startY = model.position.y;
+    model.userData.startScale = model.scale.clone();
     model.userData.startRotationX = model.rotation.x;
     model.userData.startRotationY = model.rotation.y;
 
     model.position.y = model.userData.startY - 0.6;
+
     model.scale.copy(
-    model.userData.startScale.clone().multiplyScalar(0.7)
+      model.userData.startScale.clone().multiplyScalar(0.7)
     );
+
+    model.material.transparent = true;
     model.material.opacity = 0;
 
     modelEntranceReady = true;
@@ -168,42 +172,56 @@ Promise.all([glbPromise, hdrPromise])
 
 // MODEL ENTRANCE
 
-const tl = gsap.timeline({
-  onComplete: () => {
-    modelEntranceComplete = true;
-  },
-});
+function playModelEntrance() {
+  if (!modelEntranceReady || !model) {
+    modelEntranceTriggered = true;
+    return;
+  }
 
-tl.to(
-  model.position,
-  {
-    y: model.userData.startY,
-    duration: 1.8,
-    ease: "power3.out",
-  },
-  0
-);
+  modelEntranceTriggered = true;
 
-tl.to(
-  model.scale,
-  {
-    x: model.userData.startScale.x,
-    y: model.userData.startScale.y,
-    z: model.userData.startScale.z,
-    duration: 1.8,
-    ease: "power3.out",
-  },
-  0
-);
+  const tl = gsap.timeline({
+    onComplete: () => {
+      modelEntranceComplete = true;
+    },
+  });
 
-tl.to(
-  model.material,
-  {
-    opacity: 1,
-    duration: 1.2,
-    ease: "power2.out",
-  },
-  0
+  tl.to(
+    model.position,
+    {
+      y: model.userData.startY,
+      duration: 1.8,
+      ease: "power3.out",
+    },
+    0
+  );
+
+  tl.to(
+    model.scale,
+    {
+      x: model.userData.startScale.x,
+      y: model.userData.startScale.y,
+      z: model.userData.startScale.z,
+      duration: 1.8,
+      ease: "power3.out",
+    },
+    0
+  );
+
+  tl.to(
+    model.material,
+    {
+      opacity: 1,
+      duration: 1.2,
+      ease: "power2.out",
+    },
+    0
+  );
+}
+
+window.addEventListener(
+  "flowdojo:model-enter",
+  playModelEntrance
 );
 
 
@@ -219,11 +237,8 @@ window.addEventListener("mousemove", (event) => {
   const maxRotation =
     THREE.MathUtils.degToRad(25);
 
-  targetRotation.y =
-    mouse.x * maxRotation;
-
-  targetRotation.x =
-    mouse.y * maxRotation;
+  targetRotation.y = mouse.x * maxRotation;
+  targetRotation.x = mouse.y * maxRotation;
 });
 
 
@@ -235,15 +250,11 @@ function animate() {
   if (model) {
     const time = clock.getElapsedTime();
 
-    // FLOAT ONLY AFTER ENTRANCE
-
     if (modelEntranceComplete) {
       model.position.y =
         model.userData.startY +
         Math.sin(time * 1.2) * 0.15;
     }
-
-    // CURSOR ROTATION
 
     model.rotation.x = THREE.MathUtils.lerp(
       model.rotation.x,
