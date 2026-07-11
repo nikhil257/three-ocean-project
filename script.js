@@ -26,6 +26,7 @@ const rgbeLoader = new RGBELoader();
 
 let camera;
 let model;
+let holeTarget;
 
 let modelEntranceReady = false;
 let modelEntranceTriggered = false;
@@ -77,6 +78,23 @@ Promise.all([glbPromise, hdrPromise])
     model.userData.startScale = model.scale.clone();
     model.userData.startRotationX = model.rotation.x;
     model.userData.startRotationY = model.rotation.y;
+
+    // HOLE TARGET DEBUG
+
+holeTarget = new THREE.Object3D();
+
+holeTarget.position.set(0, 0, 0);
+
+model.add(holeTarget);
+
+const holeMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(0.08, 32, 32),
+  new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+  })
+);
+
+holeTarget.add(holeMarker);
 
     model.position.y = model.userData.startY - 0.6;
 
