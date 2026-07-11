@@ -42,6 +42,8 @@ Promise.all([glbPromise, hdrPromise]).then(([gltf, hdrTexture]) => {
   pmremGenerator.dispose();
 
   scene.add(gltf.scene);
+console.log("newscript");
+  
 
   gltf.scene.traverse((child) => {
     if (child.isLight) {
@@ -86,3 +88,4 @@ window.addEventListener("resize", () => {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 });
+
