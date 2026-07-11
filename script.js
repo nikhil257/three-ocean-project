@@ -77,7 +77,7 @@ Promise.all([glbPromise, hdrPromise])
     model.userData.startRotationX = model.rotation.x;
     model.userData.startRotationY = model.rotation.y;
 
-    model.position.y = model.userData.startY - 8;
+    model.position.y = model.userData.startY - 0.6;
 
     modelEntranceReady = true;
 
