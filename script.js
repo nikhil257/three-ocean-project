@@ -139,7 +139,7 @@ window.addEventListener("mousemove", (event) => {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
 
-  const maxRotation = THREE.MathUtils.degToRad(45);
+  const maxRotation = THREE.MathUtils.degToRad(25);
 
   targetRotation.y = mouse.x * maxRotation;
   targetRotation.x = mouse.y * maxRotation;
