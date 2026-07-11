@@ -24,7 +24,6 @@ wrap.appendChild(renderer.domElement);
 const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 
-let camera;
 
 const glbPromise = gltfLoader.loadAsync(
   "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/chatmodel.glb"
