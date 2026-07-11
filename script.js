@@ -78,6 +78,10 @@ Promise.all([glbPromise, hdrPromise])
     model.userData.startRotationY = model.rotation.y;
 
     model.position.y = model.userData.startY - 0.6;
+    model.scale.copy(
+    model.userData.startScale.clone().multiplyScalar(0.7)
+    );
+    model.material.opacity = 0;
 
     modelEntranceReady = true;
 
@@ -164,28 +168,42 @@ Promise.all([glbPromise, hdrPromise])
 
 // MODEL ENTRANCE
 
-function playModelEntrance() {
-  if (!modelEntranceReady || !model) {
-    modelEntranceTriggered = true;
-    return;
-  }
+const tl = gsap.timeline({
+  onComplete: () => {
+    modelEntranceComplete = true;
+  },
+});
 
-  modelEntranceTriggered = true;
-
-  gsap.to(model.position, {
+tl.to(
+  model.position,
+  {
     y: model.userData.startY,
     duration: 1.8,
     ease: "power3.out",
+  },
+  0
+);
 
-    onComplete: () => {
-      modelEntranceComplete = true;
-    },
-  });
-}
+tl.to(
+  model.scale,
+  {
+    x: model.userData.startScale.x,
+    y: model.userData.startScale.y,
+    z: model.userData.startScale.z,
+    duration: 1.8,
+    ease: "power3.out",
+  },
+  0
+);
 
-window.addEventListener(
-  "flowdojo:model-enter",
-  playModelEntrance
+tl.to(
+  model.material,
+  {
+    opacity: 1,
+    duration: 1.2,
+    ease: "power2.out",
+  },
+  0
 );
 
 
