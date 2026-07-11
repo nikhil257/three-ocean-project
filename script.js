@@ -73,7 +73,7 @@ Promise.all([glbPromise, hdrPromise])
       return;
     }
 
-    model.userData.startY = model.position.y;
+    model.userData.startY = model.position.y + 0.3;
     model.userData.startScale = model.scale.clone();
     model.userData.startRotationX = model.rotation.x;
     model.userData.startRotationY = model.rotation.y;
