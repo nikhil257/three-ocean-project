@@ -28,6 +28,10 @@ let camera;
 let model;
 let holeTarget;
 
+// camera moves to center to dive in
+let cameraStartPosition;
+let cameraScrollProgress = 0;
+
 let modelEntranceReady = false;
 let modelEntranceTriggered = false;
 let modelEntranceComplete = false;
@@ -175,6 +179,13 @@ holeTarget.add(holeMarker);
 
     camera.updateProjectionMatrix();
 
+    // Camera moving center to dive in
+    cameraStartPosition = new THREE.Vector3();
+
+camera.getWorldPosition(cameraStartPosition);
+
+setupCameraScroll();
+
     console.log("SCENE READY");
 
     animate();
@@ -228,6 +239,29 @@ window.addEventListener(
 );
 
 
+// CAMERA SCROLL
+
+function setupCameraScroll() {
+  gsap.to(
+    { progress: 0 },
+    {
+      progress: 1,
+
+      scrollTrigger: {
+        trigger: ".three-hero",
+        start: "top top",
+        end: "+=3000",
+        scrub: 1,
+        pin: true,
+      },
+
+      onUpdate() {
+        cameraScrollProgress = this.targets()[0].progress;
+      },
+    }
+  );
+}
+
 // MOUSE MOVEMENT
 
 window.addEventListener("mousemove", (event) => {
@@ -274,6 +308,45 @@ function animate() {
     );
   }
 
+
+  // moving center -camera dive in
+  if (
+  camera &&
+  holeTarget &&
+  cameraStartPosition
+) {
+  const holeWorldPosition = new THREE.Vector3();
+
+  holeTarget.getWorldPosition(holeWorldPosition);
+
+  const direction = new THREE.Vector3()
+    .subVectors(
+      cameraStartPosition,
+      holeWorldPosition
+    )
+    .normalize();
+
+  const cameraEndPosition = holeWorldPosition
+    .clone()
+    .addScaledVector(direction, 0.5);
+
+  const cameraWorldPosition = new THREE.Vector3()
+    .lerpVectors(
+      cameraStartPosition,
+      cameraEndPosition,
+      cameraScrollProgress
+    );
+
+  if (camera.parent) {
+    camera.parent.worldToLocal(cameraWorldPosition);
+  }
+
+  camera.position.copy(cameraWorldPosition);
+
+  camera.lookAt(holeWorldPosition);
+}
+
+  
   renderer.render(scene, camera);
 }
 
