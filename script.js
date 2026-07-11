@@ -28,6 +28,7 @@ new RGBELoader().load(
     const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
 
     scene.environment = envMap;
+    scene.environmentIntensity = 0.5;
 
     hdrTexture.dispose();
     pmremGenerator.dispose();
