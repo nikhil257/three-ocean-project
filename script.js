@@ -17,7 +17,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(wrap.clientWidth, wrap.clientHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.AgXToneMapping;
-renderer.toneMappingExposure = 0.7;
+renderer.toneMappingExposure = 0.9;
 
 wrap.appendChild(renderer.domElement);
 
@@ -139,7 +139,7 @@ window.addEventListener("mousemove", (event) => {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
 
-  const maxRotation = THREE.MathUtils.degToRad(30);
+  const maxRotation = THREE.MathUtils.degToRad(360);
 
   targetRotation.y = mouse.x * maxRotation;
   targetRotation.x = mouse.y * maxRotation;
