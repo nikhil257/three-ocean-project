@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 6");
+console.log("THREE OCEAN VERSION 7");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -24,17 +24,12 @@ wrap.appendChild(renderer.domElement);
 const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 
-
-const glbPromise = gltfLoader.loadAsync(
-  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/chatmodel.glb"
-);
-
-const hdrPromise = rgbeLoader.loadAsync(
-  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
-);
-
 let camera;
 let model;
+
+let modelEntranceReady = false;
+let modelEntranceTriggered = false;
+let modelEntranceComplete = false;
 
 const mouse = {
   x: 0,
@@ -48,11 +43,20 @@ const targetRotation = {
 
 const clock = new THREE.Clock();
 
+const glbPromise = gltfLoader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/chatmodel.glb"
+);
+
+const hdrPromise = rgbeLoader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
+);
+
 Promise.all([glbPromise, hdrPromise])
   .then(([gltf, hdrTexture]) => {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
-    const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
+    const envMap =
+      pmremGenerator.fromEquirectangular(hdrTexture).texture;
 
     scene.environment = envMap;
     scene.environmentIntensity = 0.15;
@@ -64,8 +68,10 @@ Promise.all([glbPromise, hdrPromise])
 
     model = gltf.scene.getObjectByName("Curve");
 
-    let modelEntranceReady = false;
-    let modelEntranceTriggered = false;
+    if (!model) {
+      console.error("Model mesh not found");
+      return;
+    }
 
     model.userData.startY = model.position.y;
     model.userData.startRotationX = model.rotation.x;
@@ -75,48 +81,51 @@ Promise.all([glbPromise, hdrPromise])
 
     modelEntranceReady = true;
 
-if (modelEntranceTriggered) {
-  playModelEntrance();
-}
+    if (modelEntranceTriggered) {
+      playModelEntrance();
+    }
 
-if (!model) {
-  console.error("Model mesh not found");
-  return;
-}
-
-model.userData.startY = model.position.y;
-model.userData.startRotationX = model.rotation.x;
-model.userData.startRotationY = model.rotation.y;
+    // RIM LIGHT TARGET
 
     const rimTarget = new THREE.Object3D();
-rimTarget.position.set(0, 0, 0);
-scene.add(rimTarget);
 
-const rimLightLeft = new THREE.SpotLight(
-  0xffffff,
-  120,
-  0,
-  Math.PI / 5,
-  0.3,
-  2
-);
+    rimTarget.position.set(0, 0, 0);
 
-rimLightLeft.position.set(-4, 3, -4);
-rimLightLeft.target = rimTarget;
-scene.add(rimLightLeft);
+    scene.add(rimTarget);
 
-const rimLightRight = new THREE.SpotLight(
-  0x8f5cff,
-  100,
-  0,
-  Math.PI / 5,
-  0.3,
-  2
-);
+    // LEFT RIM LIGHT
 
-rimLightRight.position.set(4, 2, -4);
-rimLightRight.target = rimTarget;
-scene.add(rimLightRight);
+    const rimLightLeft = new THREE.SpotLight(
+      0xffffff,
+      120,
+      0,
+      Math.PI / 5,
+      0.3,
+      2
+    );
+
+    rimLightLeft.position.set(-4, 3, -4);
+    rimLightLeft.target = rimTarget;
+
+    scene.add(rimLightLeft);
+
+    // RIGHT RIM LIGHT
+
+    const rimLightRight = new THREE.SpotLight(
+      0x8f5cff,
+      100,
+      0,
+      Math.PI / 5,
+      0.3,
+      2
+    );
+
+    rimLightRight.position.set(4, 2, -4);
+    rimLightRight.target = rimTarget;
+
+    scene.add(rimLightRight);
+
+    // GLB LIGHTS
 
     gltf.scene.traverse((child) => {
       if (!child.isLight) return;
@@ -130,6 +139,8 @@ scene.add(rimLightRight);
       }
     });
 
+    // CAMERA
+
     camera = gltf.cameras[0];
 
     if (!camera) {
@@ -137,7 +148,9 @@ scene.add(rimLightRight);
       return;
     }
 
-    camera.aspect = wrap.clientWidth / wrap.clientHeight;
+    camera.aspect =
+      wrap.clientWidth / wrap.clientHeight;
+
     camera.updateProjectionMatrix();
 
     console.log("SCENE READY");
@@ -148,31 +161,55 @@ scene.add(rimLightRight);
     console.error("Scene loading error:", error);
   });
 
+
+// MODEL ENTRANCE
+
 function playModelEntrance() {
   if (!modelEntranceReady || !model) {
     modelEntranceTriggered = true;
     return;
   }
 
+  modelEntranceTriggered = true;
+
   gsap.to(model.position, {
     y: model.userData.startY,
     duration: 1.8,
     ease: "power3.out",
+
+    onComplete: () => {
+      modelEntranceComplete = true;
+    },
   });
 }
 
-window.addEventListener("flowdojo:model-enter", playModelEntrance);
+window.addEventListener(
+  "flowdojo:model-enter",
+  playModelEntrance
+);
+
 
 // MOUSE MOVEMENT
+
 window.addEventListener("mousemove", (event) => {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
+  mouse.x =
+    (event.clientX / window.innerWidth) * 2 - 1;
 
-  const maxRotation = THREE.MathUtils.degToRad(25);
+  mouse.y =
+    (event.clientY / window.innerHeight) * 2 - 1;
 
-  targetRotation.y = mouse.x * maxRotation;
-  targetRotation.x = mouse.y * maxRotation;
+  const maxRotation =
+    THREE.MathUtils.degToRad(25);
+
+  targetRotation.y =
+    mouse.x * maxRotation;
+
+  targetRotation.x =
+    mouse.y * maxRotation;
 });
+
+
+// ANIMATION LOOP
 
 function animate() {
   requestAnimationFrame(animate);
@@ -180,27 +217,36 @@ function animate() {
   if (model) {
     const time = clock.getElapsedTime();
 
-    // Smooth Y-axis floating
-    model.position.y =
-      model.userData.startY +
-      Math.sin(time * 1.2) * 0.15;
+    // FLOAT ONLY AFTER ENTRANCE
 
-    // Smooth cursor rotation
+    if (modelEntranceComplete) {
+      model.position.y =
+        model.userData.startY +
+        Math.sin(time * 1.2) * 0.15;
+    }
+
+    // CURSOR ROTATION
+
     model.rotation.x = THREE.MathUtils.lerp(
       model.rotation.x,
-      model.userData.startRotationX + targetRotation.x,
+      model.userData.startRotationX +
+        targetRotation.x,
       0.05
     );
 
     model.rotation.y = THREE.MathUtils.lerp(
       model.rotation.y,
-      model.userData.startRotationY + targetRotation.y,
+      model.userData.startRotationY +
+        targetRotation.y,
       0.05
     );
   }
 
   renderer.render(scene, camera);
 }
+
+
+// RESIZE
 
 window.addEventListener("resize", () => {
   if (!camera) return;
