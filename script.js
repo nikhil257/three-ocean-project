@@ -64,6 +64,21 @@ Promise.all([glbPromise, hdrPromise])
 
     model = gltf.scene.getObjectByName("Curve");
 
+    let modelEntranceReady = false;
+    let modelEntranceTriggered = false;
+
+    model.userData.startY = model.position.y;
+    model.userData.startRotationX = model.rotation.x;
+    model.userData.startRotationY = model.rotation.y;
+
+    model.position.y = model.userData.startY - 8;
+
+    modelEntranceReady = true;
+
+if (modelEntranceTriggered) {
+  playModelEntrance();
+}
+
 if (!model) {
   console.error("Model mesh not found");
   return;
@@ -133,6 +148,20 @@ scene.add(rimLightRight);
     console.error("Scene loading error:", error);
   });
 
+function playModelEntrance() {
+  if (!modelEntranceReady || !model) {
+    modelEntranceTriggered = true;
+    return;
+  }
+
+  gsap.to(model.position, {
+    y: model.userData.startY,
+    duration: 1.8,
+    ease: "power3.out",
+  });
+}
+
+window.addEventListener("flowdojo:model-enter", playModelEntrance);
 
 // MOUSE MOVEMENT
 window.addEventListener("mousemove", (event) => {
