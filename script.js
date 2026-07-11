@@ -80,10 +80,6 @@ Promise.all([glbPromise, hdrPromise])
 
     model.position.y = model.userData.startY - 0.6;
 
-    model.scale.copy(
-      model.userData.startScale.clone().multiplyScalar(0.7)
-    );
-
     model.material.transparent = true;
     model.material.opacity = 0;
 
@@ -196,17 +192,6 @@ function playModelEntrance() {
     0
   );
 
-  tl.to(
-    model.scale,
-    {
-      x: model.userData.startScale.x,
-      y: model.userData.startScale.y,
-      z: model.userData.startScale.z,
-      duration: 1.8,
-      ease: "power3.out",
-    },
-    0
-  );
 
   tl.to(
     model.material,
