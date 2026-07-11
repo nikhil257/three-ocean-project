@@ -19,73 +19,59 @@ renderer.toneMappingExposure = 0.7;
 
 wrap.appendChild(renderer.domElement);
 
-const pmremGenerator = new THREE.PMREMGenerator(renderer);
-pmremGenerator.compileEquirectangularShader();
+const gltfLoader = new GLTFLoader();
+const rgbeLoader = new RGBELoader();
 
-new RGBELoader().load(
-  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr",
-  (hdrTexture) => {
-    const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
-
-    scene.environment = envMap;
-    scene.environmentIntensity = 0.5;
-
-    hdrTexture.dispose();
-    pmremGenerator.dispose();
-
-    console.log("HDRI loaded");
-  }
+const glbPromise = gltfLoader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/chatmodel.glb"
 );
+
+const hdrPromise = rgbeLoader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
+);
+
+Promise.all([glbPromise, hdrPromise]).then(([gltf, hdrTexture]) => {
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+
+  const envMap = pmremGenerator.fromEquirectangular(hdrTexture).texture;
+
+  scene.environment = envMap;
+  scene.environmentIntensity = 0.15;
+
+  hdrTexture.dispose();
+  pmremGenerator.dispose();
+
+  scene.add(gltf.scene);
+
+  gltf.scene.traverse((child) => {
+    if (child.isLight) {
+      if (child.name === "Back_Reflection_Loght") {
+        child.intensity = 50;
+      }
+
+      if (child.name === "Top_light_2") {
+        child.intensity = 30;
+      }
+    }
+  });
+
+  camera = gltf.cameras[0];
+
+  if (!camera) {
+    console.error("No camera found inside GLB");
+    return;
+  }
+
+  camera.aspect = wrap.clientWidth / wrap.clientHeight;
+  camera.updateProjectionMatrix();
+
+  animate();
+});
 
 let camera;
 
-const loader = new GLTFLoader();
-
-loader.load(
-  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/chatmodel.glb",
-
-  (gltf) => {
-    console.log("GLB loaded:", gltf);
-    console.log("Cameras:", gltf.cameras);
-    console.log("Scene:", gltf.scene);
-
-    scene.add(gltf.scene);
-
-    gltf.scene.traverse((child) => {
-      if (child.isLight) {
-        if (child.name === "Back_Reflection_Loght") {
-          child.intensity = 50;
-        }
-
-        if (child.name === "Top_light_2") {
-          child.intensity = 30;
-        }
-      }
-    });
-
-    camera = gltf.cameras[0];
-
-    if (!camera) {
-      console.error("No camera found inside GLB");
-      return;
-    }
-
-    camera.aspect = wrap.clientWidth / wrap.clientHeight;
-    camera.updateProjectionMatrix();
-
-    animate();
-  },
-
-  undefined,
-
-  (error) => {
-    console.error("GLB loading error:", error);
-  }
-);
-
 function animate() {
   requestAnimationFrame(animate);
-
   renderer.render(scene, camera);
 }
 
