@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 10");
+console.log("THREE OCEAN VERSION 12");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
