@@ -238,11 +238,17 @@ waterNormalPromise
     waterNormal.wrapS = THREE.RepeatWrapping;
     waterNormal.wrapT = THREE.RepeatWrapping;
     waterNormal.needsUpdate = true;
+createOcean();
 
-    createOcean();
+console.log("WATER NORMAL READY");
+console.log("PLANAR REFLECTION OCEAN READY");
 
-    console.log("WATER NORMAL READY");
-    console.log("PLANAR REFLECTION OCEAN READY");
+if (
+  cameraScrollProgress >= 0.98 &&
+  !oceanRevealed
+) {
+  revealOcean();
+}
   })
   .catch((error) => {
     console.error("WATER NORMAL ERROR", error);
@@ -774,6 +780,11 @@ function updateOceanReflection() {
 
 function revealOcean() {
   if (oceanRevealed) return;
+
+  if (!oceanGroup || !ocean) {
+    console.log("OCEAN NOT READY YET");
+    return;
+  }
 
   oceanRevealed = true;
 
