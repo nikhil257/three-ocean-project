@@ -30,7 +30,6 @@ let holeTarget;
 
 // camera moves to center to dive in
 let cameraStartPosition;
-let cameraStartQuaternion;
 let cameraScrollProgress = 0;
 
 let modelEntranceReady = false;
@@ -176,10 +175,6 @@ Promise.all([glbPromise, hdrPromise])
     cameraStartPosition = new THREE.Vector3();
 
   camera.getWorldPosition(cameraStartPosition);
-
-  cameraStartQuaternion = new THREE.Quaternion();
-
-  camera.getWorldQuaternion(cameraStartQuaternion);
 
 setupCameraScroll();
 
@@ -409,36 +404,7 @@ if (
   camera.position.copy(cameraWorldPosition);
 
 
-// CAMERA LOOK DIRECTION
-
-if (cameraScrollProgress <= 0.5) {
-  camera.quaternion.copy(cameraStartQuaternion);
-}
-
-else if (cameraScrollProgress <= 0.6) {
-  const lookProgress =
-    (cameraScrollProgress - 0.5) / 0.1;
-
-  const targetCamera = new THREE.Object3D();
-
-  targetCamera.position.copy(cameraWorldPosition);
-  targetCamera.lookAt(holeWorldPosition);
-
-  camera.quaternion.slerpQuaternions(
-    cameraStartQuaternion,
-    targetCamera.quaternion,
-    THREE.MathUtils.smoothstep(
-      lookProgress,
-      0,
-      1
-    )
-  );
-}
-
-else {
-  camera.lookAt(forwardLookTarget);
-}
-}
+camera.lookAt(forwardLookTarget);
 
   
   renderer.render(scene, camera);
