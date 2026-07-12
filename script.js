@@ -102,8 +102,12 @@ const hdrPromise = rgbeLoader.loadAsync(
   "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
 );
 
-Promise.all([glbPromise, hdrPromise])
-  .then(([gltf, hdrTexture]) => {
+Promise.all([
+  glbPromise,
+  hdrPromise,
+  waterNormalPromise,
+])
+  .then(([gltf, hdrTexture, texture]) => {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
     const envMap =
@@ -231,28 +235,15 @@ holeFixedPosition = new THREE.Vector3();
 holeTarget.getWorldPosition(holeFixedPosition);
 
 
-waterNormalPromise
-  .then((texture) => {
-    waterNormal = texture;
+waterNormal = texture;
 
-    waterNormal.wrapS = THREE.RepeatWrapping;
-    waterNormal.wrapT = THREE.RepeatWrapping;
-    waterNormal.needsUpdate = true;
+waterNormal.wrapS = THREE.RepeatWrapping;
+waterNormal.wrapT = THREE.RepeatWrapping;
+waterNormal.needsUpdate = true;
+
 createOcean();
 
 console.log("WATER NORMAL READY");
-console.log("PLANAR REFLECTION OCEAN READY");
-
-if (
-  cameraScrollProgress >= 0.98 &&
-  !oceanRevealed
-) {
-  revealOcean();
-}
-  })
-  .catch((error) => {
-    console.error("WATER NORMAL ERROR", error);
-  });
 
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
