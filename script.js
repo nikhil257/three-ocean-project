@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 14 - TWO SCENE OCEAN FLOW");
+console.log("THREE OCEAN VERSION 15 - BACKGROUND KTX2 PRELOAD");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -35,6 +35,27 @@ ktx2Loader.setTranscoderPath(
 );
 
 ktx2Loader.detectSupport(renderer);
+
+const waterNormalPromise = ktx2Loader
+  .loadAsync(
+    "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
+  )
+  .then((texture) => {
+    console.log(
+      "WATER NORMAL PRELOADED",
+      texture.constructor.name
+    );
+
+    return texture;
+  })
+  .catch((error) => {
+    console.error(
+      "WATER NORMAL PRELOAD ERROR",
+      error
+    );
+
+    throw error;
+  });
 
 let camera;
 let model;
@@ -777,9 +798,7 @@ function revealOcean() {
     console.log("LOADING OCEAN SCENE");
 
     try {
-      waterNormal = await ktx2Loader.loadAsync(
-        "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
-      );
+      waterNormal = await waterNormalPromise;
 
       waterNormal.wrapS = THREE.RepeatWrapping;
       waterNormal.wrapT = THREE.RepeatWrapping;
