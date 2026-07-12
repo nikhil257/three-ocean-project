@@ -3,6 +3,8 @@ console.log("THREE OCEAN VERSION 10");
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+
 
 const wrap = document.querySelector(".three-canvas-wrap");
 const whiteFlash = document.querySelector(".white-flash");
@@ -25,6 +27,26 @@ wrap.appendChild(renderer.domElement);
 
 const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
+
+const ktx2Loader = new KTX2Loader();
+
+ktx2Loader.setTranscoderPath(
+  "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/basis/"
+);
+
+ktx2Loader.detectSupport(renderer);
+
+ktx2Loader
+  .loadAsync(
+    "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
+  )
+  .then((texture) => {
+    console.log("WATER NORMAL LOADED", texture);
+  })
+  .catch((error) => {
+    console.error("WATER NORMAL ERROR", error);
+  });
+
 
 let camera;
 let model;
