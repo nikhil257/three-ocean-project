@@ -238,94 +238,242 @@ setupCameraScroll();
 
 // OCEAN WORLD
 
-// CUSTOM OCEAN
-
 function createOcean() {
   oceanGroup = new THREE.Group();
 
   const oceanGeometry = new THREE.PlaneGeometry(
-    200,
-    200,
-    256,
-    256
+    1,
+    1,
+    75,
+    75
   );
 
   const oceanMaterial = new THREE.ShaderMaterial({
     uniforms: {
+      uNormalTexture: {
+        value: waterNormal,
+      },
       uTime: {
         value: 0,
+      },
+      uColor: {
+        value: new THREE.Color(0x7fcfff),
+      },
+      uLightPos: {
+        value: new THREE.Vector3(
+          0.85,
+          2.98,
+          -10
+        ),
+      },
+      uLightIntensity: {
+        value: 1.63,
+      },
+      uShine: {
+        value: 22.6,
+      },
+      uDiffuse: {
+        value: 0.54,
+      },
+      uDiffuseColor: {
+        value: new THREE.Color(4681860),
+      },
+      uSpecularColor: {
+        value: new THREE.Color(40959),
+      },
+      uNoiseScale: {
+        value: 20.9,
+      },
+      uNoiseSpeed: {
+        value: 0.56,
+      },
+      uAmplitude: {
+        value: 0.3,
+      },
+      uFrequency: {
+        value: 0.4,
+      },
+      uWaveSpeed: {
+        value: 0.5,
       },
     },
 
     vertexShader: `
-      uniform float uTime;
+      varying vec4 vWorldPosition;
 
-      varying float vWave;
-      varying vec3 vWorldPosition;
+      uniform float uTime;
+      uniform float uAmplitude;
+      uniform float uFrequency;
+      uniform float uWaveSpeed;
 
       void main() {
-        vec3 pos = position;
+        vec3 transformedPosition = position;
 
-        float wave1 =
-          sin(pos.x * 0.35 + uTime * 0.8) * 0.18;
+        vWorldPosition =
+          modelMatrix *
+          vec4(transformedPosition, 1.0);
 
-        float wave2 =
-          sin(pos.y * 0.55 - uTime * 0.6) * 0.12;
+        transformedPosition.z += cos(
+          (vWorldPosition.z - vWorldPosition.x)
+          * -uFrequency
+          + uTime * uWaveSpeed
+        ) * uAmplitude;
 
-        float wave3 =
-          sin(
-            (pos.x + pos.y) * 0.22 +
-            uTime * 0.45
-          ) * 0.08;
-
-        float wave =
-          wave1 +
-          wave2 +
-          wave3;
-
-        pos.z += wave;
-
-        vWave = wave;
-
-        vec4 worldPosition =
-          modelMatrix * vec4(pos, 1.0);
-
-        vWorldPosition = worldPosition.xyz;
+        vWorldPosition =
+          modelMatrix *
+          vec4(transformedPosition, 1.0);
 
         gl_Position =
           projectionMatrix *
-          viewMatrix *
-          worldPosition;
+          modelViewMatrix *
+          vec4(transformedPosition, 1.0);
       }
     `,
 
     fragmentShader: `
-      varying float vWave;
-      varying vec3 vWorldPosition;
+      varying vec4 vWorldPosition;
 
-      void main() {
-        vec3 deepColor =
-          vec3(0.005, 0.04, 0.12);
+      uniform vec3 uColor;
+      uniform sampler2D uNormalTexture;
+      uniform float uTime;
+      uniform vec3 uLightPos;
+      uniform float uLightIntensity;
+      uniform float uShine;
+      uniform float uDiffuse;
+      uniform vec3 uDiffuseColor;
+      uniform vec3 uSpecularColor;
+      uniform float uNoiseScale;
+      uniform float uNoiseSpeed;
 
-        vec3 surfaceColor =
-          vec3(0.02, 0.28, 0.42);
+      const vec3 lightColor = vec3(1.0);
 
-        float waveMix =
-          smoothstep(-0.25, 0.35, vWave);
+      vec4 getNoise(
+        vec2 uv,
+        float time
+      ) {
+        vec2 uv0 =
+          (uv / 103.0) +
+          vec2(time / 17.0, time / 29.0);
 
-        vec3 color = mix(
-          deepColor,
-          surfaceColor,
-          waveMix
+        vec2 uv1 =
+          uv / 107.0 -
+          vec2(time / -19.0, time / 31.0);
+
+        vec2 uv2 =
+          uv / vec2(8907.0, 9803.0) +
+          vec2(time / 101.0, time / 97.0);
+
+        vec2 uv3 =
+          uv / vec2(1091.0, 1027.0) -
+          vec2(time / 109.0, time / -113.0);
+
+        vec4 noise =
+          texture2D(uNormalTexture, uv0) +
+          texture2D(uNormalTexture, uv1) +
+          texture2D(uNormalTexture, uv2) +
+          texture2D(uNormalTexture, uv3);
+
+        return noise * 0.5 - 1.0;
+      }
+
+      void sunLight(
+        vec3 surfaceNormal,
+        vec3 eyeDirection,
+        float shiny,
+        float spec,
+        float diffuse,
+        inout vec3 diffuseColor,
+        inout vec3 specularColor
+      ) {
+        vec3 reflection = normalize(
+          reflect(-uLightPos, surfaceNormal)
         );
 
-        float highlight =
-          smoothstep(0.18, 0.38, vWave);
+        float direction = max(
+          0.0,
+          dot(eyeDirection, reflection)
+        );
 
-        color += highlight * 0.18;
+        specularColor +=
+          pow(direction, shiny) *
+          lightColor *
+          spec;
+
+        diffuseColor +=
+          max(
+            dot(uLightPos, surfaceNormal),
+            0.0
+          ) *
+          lightColor *
+          diffuse;
+      }
+
+      void main() {
+        vec3 baseColor = uColor;
+
+        vec4 noise = getNoise(
+          vWorldPosition.xz * uNoiseScale,
+          (uTime + 100.0) * uNoiseSpeed
+        );
+
+        vec3 surfaceNormal = normalize(
+          noise.xzy * vec3(1.5, 1.0, 1.5)
+        );
+
+        vec3 diffuseLight = uDiffuseColor;
+        vec3 specularLight = uSpecularColor;
+
+        vec3 worldToEye =
+          cameraPosition -
+          vWorldPosition.xyz;
+
+        vec3 eyeDirection =
+          normalize(worldToEye);
+
+        sunLight(
+          surfaceNormal,
+          eyeDirection,
+          uShine,
+          uLightIntensity,
+          uDiffuse,
+          diffuseLight,
+          specularLight
+        );
+
+        float theta = max(
+          dot(eyeDirection, surfaceNormal),
+          0.0
+        );
+
+        float rf0 = 0.3;
+
+        float reflectance =
+          rf0 +
+          (1.0 - rf0) *
+          pow(1.0 - theta, 5.0);
+
+        vec3 scatter =
+          max(
+            0.0,
+            dot(surfaceNormal, eyeDirection)
+          ) * baseColor;
+
+        vec3 fakeReflection =
+          vec3(0.35, 0.65, 0.85);
+
+        vec3 albedo = mix(
+          lightColor * diffuseLight * 0.3 +
+          scatter,
+
+          vec3(0.1) +
+          fakeReflection * 0.9 +
+          fakeReflection * specularLight,
+
+          reflectance
+        );
 
         gl_FragColor =
-          vec4(color, 1.0);
+          vec4(albedo, 1.0);
       }
     `,
 
@@ -338,6 +486,7 @@ function createOcean() {
   );
 
   ocean.rotation.x = -Math.PI / 2;
+  ocean.scale.set(50, 50, 1);
 
   ocean.position.set(
     holeFixedPosition.x,
@@ -346,74 +495,6 @@ function createOcean() {
   );
 
   oceanGroup.add(ocean);
-
-
-  // SKY DOME
-
-  const skyGeometry =
-    new THREE.SphereGeometry(
-      100,
-      32,
-      32
-    );
-
-  const skyMaterial =
-    new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec3 vPosition;
-
-        void main() {
-          vPosition = position;
-
-          gl_Position =
-            projectionMatrix *
-            modelViewMatrix *
-            vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        varying vec3 vPosition;
-
-        void main() {
-          float height =
-            normalize(vPosition).y;
-
-          vec3 horizonColor =
-            vec3(0.65, 0.82, 0.92);
-
-          vec3 skyColor =
-            vec3(0.05, 0.20, 0.42);
-
-          float mixValue =
-            smoothstep(
-              -0.1,
-              0.8,
-              height
-            );
-
-          vec3 color = mix(
-            horizonColor,
-            skyColor,
-            mixValue
-          );
-
-          gl_FragColor =
-            vec4(color, 1.0);
-        }
-      `,
-
-      side: THREE.BackSide,
-    });
-
-  const sky = new THREE.Mesh(
-    skyGeometry,
-    skyMaterial
-  );
-
-  sky.position.copy(holeFixedPosition);
-
-  oceanGroup.add(sky);
 
   oceanGroup.visible = false;
 
