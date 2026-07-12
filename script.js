@@ -30,6 +30,7 @@ let holeTarget;
 
 // camera moves to center to dive in
 let cameraStartPosition;
+let cameraStartQuaternion;
 let cameraScrollProgress = 0;
 
 let modelEntranceReady = false;
@@ -174,7 +175,11 @@ Promise.all([glbPromise, hdrPromise])
     // Camera moving center to dive in
     cameraStartPosition = new THREE.Vector3();
 
-camera.getWorldPosition(cameraStartPosition);
+  camera.getWorldPosition(cameraStartPosition);
+
+  cameraStartQuaternion = new THREE.Quaternion();
+
+  camera.getWorldQuaternion(cameraStartQuaternion);
 
 setupCameraScroll();
 
@@ -317,7 +322,7 @@ if (
   holeTarget.getWorldPosition(holeWorldPosition);
 
 
-  // CAMERA DIRECTION
+  // CAMERA FORWARD DIRECTION
 
   const direction = new THREE.Vector3()
     .subVectors(
@@ -339,6 +344,13 @@ if (
   const divePosition = holeWorldPosition
     .clone()
     .addScaledVector(direction, 5);
+
+
+  // FORWARD LOOK TARGET
+
+  const forwardLookTarget = holeWorldPosition
+    .clone()
+    .addScaledVector(direction, 10);
 
 
   let cameraWorldPosition;
@@ -366,7 +378,7 @@ if (
   }
 
 
-  // PHASE 2 — DIVE THROUGH HOLE
+  // PHASE 2 — PASS THROUGH AND KEEP MOVING FORWARD
 
   else {
     const progress =
@@ -394,13 +406,38 @@ if (
     );
   }
 
-  camera.position.copy(
-    cameraWorldPosition
-  );
+  camera.position.copy(cameraWorldPosition);
 
-  camera.lookAt(
-    holeWorldPosition
+
+// CAMERA LOOK DIRECTION
+
+if (cameraScrollProgress <= 0.5) {
+  camera.quaternion.copy(cameraStartQuaternion);
+}
+
+else if (cameraScrollProgress <= 0.6) {
+  const lookProgress =
+    (cameraScrollProgress - 0.5) / 0.1;
+
+  const targetCamera = new THREE.Object3D();
+
+  targetCamera.position.copy(cameraWorldPosition);
+  targetCamera.lookAt(holeWorldPosition);
+
+  camera.quaternion.slerpQuaternions(
+    cameraStartQuaternion,
+    targetCamera.quaternion,
+    THREE.MathUtils.smoothstep(
+      lookProgress,
+      0,
+      1
+    )
   );
+}
+
+else {
+  camera.lookAt(forwardLookTarget);
+}
 }
 
   
