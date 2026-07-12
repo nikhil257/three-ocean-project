@@ -36,30 +36,9 @@ ktx2Loader.setTranscoderPath(
 
 ktx2Loader.detectSupport(renderer);
 
-ktx2Loader
-  .loadAsync(
-    "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
-  )
-.then((texture) => {
-  waterNormal = texture;
-
-  waterNormal.wrapS = THREE.RepeatWrapping;
-  waterNormal.wrapT = THREE.RepeatWrapping;
-  waterNormal.needsUpdate = true;
-
-  if (ocean) {
-    ocean.material.uniforms.uNormalTexture.value =
-      waterNormal;
-
-    ocean.material.uniforms.uNormalTexture.needsUpdate =
-      true;
-  }
-
-  console.log("WATER NORMAL READY");
-})
-  .catch((error) => {
-    console.error("WATER NORMAL ERROR", error);
-  });
+const waterNormalPromise = ktx2Loader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
+);
 
 
 let camera;
@@ -252,7 +231,22 @@ holeFixedPosition = new THREE.Vector3();
 holeTarget.getWorldPosition(holeFixedPosition);
 
 
-createOcean();
+waterNormalPromise
+  .then((texture) => {
+    waterNormal = texture;
+
+    waterNormal.wrapS = THREE.RepeatWrapping;
+    waterNormal.wrapT = THREE.RepeatWrapping;
+    waterNormal.needsUpdate = true;
+
+    createOcean();
+
+    console.log("WATER NORMAL READY");
+    console.log("PLANAR REFLECTION OCEAN READY");
+  })
+  .catch((error) => {
+    console.error("WATER NORMAL ERROR", error);
+  });
 
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
