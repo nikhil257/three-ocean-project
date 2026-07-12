@@ -40,15 +40,23 @@ ktx2Loader
   .loadAsync(
     "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
   )
-  .then((texture) => {
-    waterNormal = texture;
+.then((texture) => {
+  waterNormal = texture;
 
-    waterNormal.wrapS = THREE.RepeatWrapping;
-    waterNormal.wrapT = THREE.RepeatWrapping;
-    waterNormal.needsUpdate = true;
+  waterNormal.wrapS = THREE.RepeatWrapping;
+  waterNormal.wrapT = THREE.RepeatWrapping;
+  waterNormal.needsUpdate = true;
 
-    console.log("WATER NORMAL READY");
-  })
+  if (ocean) {
+    ocean.material.uniforms.uNormalTexture.value =
+      waterNormal;
+
+    ocean.material.uniforms.uNormalTexture.needsUpdate =
+      true;
+  }
+
+  console.log("WATER NORMAL READY");
+})
   .catch((error) => {
     console.error("WATER NORMAL ERROR", error);
   });
