@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 9");
+console.log("THREE OCEAN VERSION 10");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -83,22 +83,14 @@ Promise.all([glbPromise, hdrPromise])
     model.userData.startRotationX = model.rotation.x;
     model.userData.startRotationY = model.rotation.y;
 
-    // HOLE TARGET DEBUG
+    // HOLE TARGET DEBUG - for center moving camera
 
-holeTarget = new THREE.Object3D();
+    holeTarget = new THREE.Object3D();
 
-holeTarget.position.set(0, 0, 0);
+    holeTarget.position.set(0, 0, 0);
 
-model.add(holeTarget);
+    model.add(holeTarget);
 
-const holeMarker = new THREE.Mesh(
-  new THREE.SphereGeometry(0.08, 32, 32),
-  new THREE.MeshBasicMaterial({
-    color: 0xff0000,
-  })
-);
-
-holeTarget.add(holeMarker);
 
     model.position.y = model.userData.startY - 0.6;
 
@@ -285,32 +277,37 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (model) {
-    const time = clock.getElapsedTime();
+  const time = clock.getElapsedTime();
 
-    if (modelEntranceComplete) {
-      model.position.y =
-        model.userData.startY +
-        Math.sin(time * 1.2) * 0.15;
-    }
+  const modelControl = 1 - THREE.MathUtils.smoothstep(
+    cameraScrollProgress,
+    0.5,
+    0.65
+  );
 
-    model.rotation.x = THREE.MathUtils.lerp(
-      model.rotation.x,
-      model.userData.startRotationX +
-        targetRotation.x,
-      0.05
-    );
-
-    model.rotation.y = THREE.MathUtils.lerp(
-      model.rotation.y,
-      model.userData.startRotationY +
-        targetRotation.y,
-      0.05
-    );
+  if (modelEntranceComplete) {
+    model.position.y =
+      model.userData.startY +
+      Math.sin(time * 1.2) * 0.15 * modelControl;
   }
 
+  model.rotation.x = THREE.MathUtils.lerp(
+    model.rotation.x,
+    model.userData.startRotationX +
+      targetRotation.x * modelControl,
+    0.05
+  );
+
+  model.rotation.y = THREE.MathUtils.lerp(
+    model.rotation.y,
+    model.userData.startRotationY +
+      targetRotation.y * modelControl,
+    0.05
+  );
+}
 
   // moving center -camera dive in
-  if (
+if (
   camera &&
   holeTarget &&
   cameraStartPosition
@@ -319,31 +316,91 @@ function animate() {
 
   holeTarget.getWorldPosition(holeWorldPosition);
 
+
+  // CAMERA DIRECTION
+
   const direction = new THREE.Vector3()
     .subVectors(
-      cameraStartPosition,
-      holeWorldPosition
+      holeWorldPosition,
+      cameraStartPosition
     )
     .normalize();
 
-  const cameraEndPosition = holeWorldPosition
+
+  // APPROACH POSITION
+
+  const approachPosition = holeWorldPosition
     .clone()
-    .addScaledVector(direction, 0.5);
+    .addScaledVector(direction, -0.5);
 
-  const cameraWorldPosition = new THREE.Vector3()
-    .lerpVectors(
-      cameraStartPosition,
-      cameraEndPosition,
-      cameraScrollProgress
-    );
 
-  if (camera.parent) {
-    camera.parent.worldToLocal(cameraWorldPosition);
+  // DIVE POSITION
+
+  const divePosition = holeWorldPosition
+    .clone()
+    .addScaledVector(direction, 5);
+
+
+  let cameraWorldPosition;
+
+
+  // PHASE 1 — APPROACH HOLE
+
+  if (cameraScrollProgress <= 0.6) {
+    const progress =
+      cameraScrollProgress / 0.6;
+
+    const smoothProgress =
+      THREE.MathUtils.smoothstep(
+        progress,
+        0,
+        1
+      );
+
+    cameraWorldPosition = new THREE.Vector3()
+      .lerpVectors(
+        cameraStartPosition,
+        approachPosition,
+        smoothProgress
+      );
   }
 
-  camera.position.copy(cameraWorldPosition);
 
-  camera.lookAt(holeWorldPosition);
+  // PHASE 2 — DIVE THROUGH HOLE
+
+  else {
+    const progress =
+      (cameraScrollProgress - 0.6) / 0.4;
+
+    const smoothProgress =
+      THREE.MathUtils.smoothstep(
+        progress,
+        0,
+        1
+      );
+
+    cameraWorldPosition = new THREE.Vector3()
+      .lerpVectors(
+        approachPosition,
+        divePosition,
+        smoothProgress
+      );
+  }
+
+
+  if (camera.parent) {
+    camera.parent.worldToLocal(
+      cameraWorldPosition
+    );
+  }
+
+  camera.position.copy(
+    cameraWorldPosition
+  );
+
+  camera.lookAt(
+    holeWorldPosition
+  );
 }
 
   
