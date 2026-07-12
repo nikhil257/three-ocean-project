@@ -30,6 +30,7 @@ let holeTarget;
 
 // camera moves to center to dive in
 let cameraStartPosition;
+let holeFixedPosition;
 let cameraScrollProgress = 0;
 
 let modelEntranceReady = false;
@@ -176,6 +177,15 @@ Promise.all([glbPromise, hdrPromise])
 
   camera.getWorldPosition(cameraStartPosition);
 
+    model.position.y = model.userData.startY;
+model.updateMatrixWorld(true);
+
+holeFixedPosition = new THREE.Vector3();
+holeTarget.getWorldPosition(holeFixedPosition);
+
+model.position.y = model.userData.startY - 0.6;
+model.updateMatrixWorld(true);
+
 setupCameraScroll();
 
     console.log("SCENE READY");
@@ -309,49 +319,29 @@ function animate() {
   // moving center -camera dive in
 if (
   camera &&
-  holeTarget &&
+  holeFixedPosition &&
   cameraStartPosition
 ) {
-  const holeWorldPosition = new THREE.Vector3();
-
-  holeTarget.getWorldPosition(holeWorldPosition);
-
-
-  // CAMERA FORWARD DIRECTION
-
   const direction = new THREE.Vector3()
     .subVectors(
-      holeWorldPosition,
+      holeFixedPosition,
       cameraStartPosition
     )
     .normalize();
 
-
-  // APPROACH POSITION
-
-  const approachPosition = holeWorldPosition
+  const approachPosition = holeFixedPosition
     .clone()
     .addScaledVector(direction, -0.5);
 
-
-  // DIVE POSITION
-
-  const divePosition = holeWorldPosition
+  const divePosition = holeFixedPosition
     .clone()
     .addScaledVector(direction, 5);
 
-
-  // FORWARD LOOK TARGET
-
-  const forwardLookTarget = holeWorldPosition
+  const forwardLookTarget = holeFixedPosition
     .clone()
     .addScaledVector(direction, 10);
 
-
   let cameraWorldPosition;
-
-
-  // PHASE 1 — APPROACH HOLE
 
   if (cameraScrollProgress <= 0.6) {
     const progress =
@@ -370,12 +360,7 @@ if (
         approachPosition,
         smoothProgress
       );
-  }
-
-
-  // PHASE 2 — PASS THROUGH AND KEEP MOVING FORWARD
-
-  else {
+  } else {
     const progress =
       (cameraScrollProgress - 0.6) / 0.4;
 
@@ -394,7 +379,6 @@ if (
       );
   }
 
-
   if (camera.parent) {
     camera.parent.worldToLocal(
       cameraWorldPosition
@@ -403,13 +387,11 @@ if (
 
   camera.position.copy(cameraWorldPosition);
 
-
-camera.lookAt(forwardLookTarget);
+  camera.lookAt(forwardLookTarget);
 }
 
 renderer.render(scene, camera);
-}
-
+  }
 
 // RESIZE
 
