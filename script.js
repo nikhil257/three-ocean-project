@@ -5,6 +5,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 
 const wrap = document.querySelector(".three-canvas-wrap");
+const whiteFlash = document.querySelector(".white-flash");
+const oceanCTA = document.querySelector(".ocean-cta");
 
 const scene = new THREE.Scene();
 
@@ -27,6 +29,11 @@ const rgbeLoader = new RGBELoader();
 let camera;
 let model;
 let holeTarget;
+
+// OCEAN 
+let oceanGroup;
+let ocean;
+let oceanRevealed = false;
 
 // camera moves to center to dive in
 let cameraStartPosition;
@@ -183,6 +190,62 @@ model.updateMatrixWorld(true);
 holeFixedPosition = new THREE.Vector3();
 holeTarget.getWorldPosition(holeFixedPosition);
 
+createOcean();
+
+// OCEAN REVEAL
+
+function revealOcean() {
+  if (oceanRevealed) return;
+
+  oceanRevealed = true;
+
+  const tl = gsap.timeline();
+
+  tl.set(whiteFlash, {
+    visibility: "visible",
+  });
+
+  tl.to(whiteFlash, {
+    opacity: 1,
+    duration: 0.8,
+    ease: "power2.inOut",
+  });
+
+  tl.call(() => {
+    model.visible = false;
+    oceanGroup.visible = true;
+  });
+
+  tl.to(whiteFlash, {
+    opacity: 0,
+    duration: 1.2,
+    ease: "power2.inOut",
+  });
+
+  tl.set(whiteFlash, {
+    visibility: "hidden",
+  });
+
+  tl.set(oceanCTA, {
+    visibility: "visible",
+    pointerEvents: "auto",
+  });
+
+  tl.fromTo(
+    oceanCTA,
+    {
+      opacity: 0,
+      scale: 0.95,
+    },
+    {
+      opacity: 1,
+      scale: 1,
+      duration: 1,
+      ease: "power3.out",
+    }
+  );
+}
+
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
 
@@ -195,6 +258,191 @@ setupCameraScroll();
   .catch((error) => {
     console.error("Scene loading error:", error);
   });
+
+
+// OCEAN WORLD
+
+// CUSTOM OCEAN
+
+function createOcean() {
+  oceanGroup = new THREE.Group();
+
+  const oceanGeometry = new THREE.PlaneGeometry(
+    200,
+    200,
+    256,
+    256
+  );
+
+  const oceanMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: {
+        value: 0,
+      },
+    },
+
+    vertexShader: `
+      uniform float uTime;
+
+      varying float vWave;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 pos = position;
+
+        float wave1 =
+          sin(pos.x * 0.35 + uTime * 0.8) * 0.18;
+
+        float wave2 =
+          sin(pos.y * 0.55 - uTime * 0.6) * 0.12;
+
+        float wave3 =
+          sin(
+            (pos.x + pos.y) * 0.22 +
+            uTime * 0.45
+          ) * 0.08;
+
+        float wave =
+          wave1 +
+          wave2 +
+          wave3;
+
+        pos.z += wave;
+
+        vWave = wave;
+
+        vec4 worldPosition =
+          modelMatrix * vec4(pos, 1.0);
+
+        vWorldPosition = worldPosition.xyz;
+
+        gl_Position =
+          projectionMatrix *
+          viewMatrix *
+          worldPosition;
+      }
+    `,
+
+    fragmentShader: `
+      varying float vWave;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 deepColor =
+          vec3(0.005, 0.04, 0.12);
+
+        vec3 surfaceColor =
+          vec3(0.02, 0.28, 0.42);
+
+        float waveMix =
+          smoothstep(-0.25, 0.35, vWave);
+
+        vec3 color = mix(
+          deepColor,
+          surfaceColor,
+          waveMix
+        );
+
+        float highlight =
+          smoothstep(0.18, 0.38, vWave);
+
+        color += highlight * 0.18;
+
+        gl_FragColor =
+          vec4(color, 1.0);
+      }
+    `,
+
+    side: THREE.DoubleSide,
+  });
+
+  ocean = new THREE.Mesh(
+    oceanGeometry,
+    oceanMaterial
+  );
+
+  ocean.rotation.x = -Math.PI / 2;
+
+  ocean.position.set(
+    holeFixedPosition.x,
+    holeFixedPosition.y - 2.5,
+    holeFixedPosition.z + 25
+  );
+
+  oceanGroup.add(ocean);
+
+
+  // SKY DOME
+
+  const skyGeometry =
+    new THREE.SphereGeometry(
+      100,
+      32,
+      32
+    );
+
+  const skyMaterial =
+    new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vPosition;
+
+        void main() {
+          vPosition = position;
+
+          gl_Position =
+            projectionMatrix *
+            modelViewMatrix *
+            vec4(position, 1.0);
+        }
+      `,
+
+      fragmentShader: `
+        varying vec3 vPosition;
+
+        void main() {
+          float height =
+            normalize(vPosition).y;
+
+          vec3 horizonColor =
+            vec3(0.65, 0.82, 0.92);
+
+          vec3 skyColor =
+            vec3(0.05, 0.20, 0.42);
+
+          float mixValue =
+            smoothstep(
+              -0.1,
+              0.8,
+              height
+            );
+
+          vec3 color = mix(
+            horizonColor,
+            skyColor,
+            mixValue
+          );
+
+          gl_FragColor =
+            vec4(color, 1.0);
+        }
+      `,
+
+      side: THREE.BackSide,
+    });
+
+  const sky = new THREE.Mesh(
+    skyGeometry,
+    skyMaterial
+  );
+
+  sky.position.copy(holeFixedPosition);
+
+  oceanGroup.add(sky);
+
+  oceanGroup.visible = false;
+
+  scene.add(oceanGroup);
+}
 
 
 // MODEL ENTRANCE
@@ -257,9 +505,17 @@ function setupCameraScroll() {
         pin: true,
       },
 
-      onUpdate() {
-        cameraScrollProgress = this.targets()[0].progress;
-      },
+onUpdate() {
+  cameraScrollProgress =
+    this.targets()[0].progress;
+
+  if (
+    cameraScrollProgress >= 0.98 &&
+    !oceanRevealed
+  ) {
+    revealOcean();
+  }
+},
     }
   );
 }
@@ -390,6 +646,11 @@ if (
   camera.lookAt(forwardLookTarget);
 }
 
+if (ocean && oceanGroup?.visible) {
+  ocean.material.uniforms.uTime.value =
+    clock.getElapsedTime();
+}
+  
 renderer.render(scene, camera);
   }
 
