@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 13 - PLANAR REFLECTION");
+console.log("THREE OCEAN VERSION 14 - TWO SCENE OCEAN FLOW");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -35,11 +35,6 @@ ktx2Loader.setTranscoderPath(
 );
 
 ktx2Loader.detectSupport(renderer);
-
-const waterNormalPromise = ktx2Loader.loadAsync(
-  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
-);
-
 
 let camera;
 let model;
@@ -105,9 +100,8 @@ const hdrPromise = rgbeLoader.loadAsync(
 Promise.all([
   glbPromise,
   hdrPromise,
-  waterNormalPromise,
 ])
-  .then(([gltf, hdrTexture, texture]) => {
+  .then(([gltf, hdrTexture]) => {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
     const envMap =
@@ -234,16 +228,6 @@ model.updateMatrixWorld(true);
 holeFixedPosition = new THREE.Vector3();
 holeTarget.getWorldPosition(holeFixedPosition);
 
-
-waterNormal = texture;
-
-waterNormal.wrapS = THREE.RepeatWrapping;
-waterNormal.wrapT = THREE.RepeatWrapping;
-waterNormal.needsUpdate = true;
-
-createOcean();
-
-console.log("WATER NORMAL READY");
 
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
@@ -772,11 +756,6 @@ function updateOceanReflection() {
 function revealOcean() {
   if (oceanRevealed) return;
 
-  if (!oceanGroup || !ocean) {
-    console.log("OCEAN NOT READY YET");
-    return;
-  }
-
   oceanRevealed = true;
 
   const tl = gsap.timeline();
@@ -791,39 +770,73 @@ function revealOcean() {
     ease: "power2.inOut",
   });
 
-  tl.call(() => {
+  tl.call(async () => {
     model.visible = false;
-    oceanGroup.visible = true;
-  });
 
-  tl.to(whiteFlash, {
-    opacity: 0,
-    duration: 1.2,
-    ease: "power2.inOut",
-  });
+    console.log("WHITE FLASH COMPLETE");
+    console.log("LOADING OCEAN SCENE");
 
-  tl.set(whiteFlash, {
-    visibility: "hidden",
-  });
+    try {
+      waterNormal = await ktx2Loader.loadAsync(
+        "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
+      );
 
-  tl.set(oceanCTA, {
-    visibility: "visible",
-    pointerEvents: "auto",
-  });
+      waterNormal.wrapS = THREE.RepeatWrapping;
+      waterNormal.wrapT = THREE.RepeatWrapping;
+      waterNormal.needsUpdate = true;
 
-  tl.fromTo(
-    oceanCTA,
-    {
-      opacity: 0,
-      scale: 0.95,
-    },
-    {
-      opacity: 1,
-      scale: 1,
-      duration: 1,
-      ease: "power3.out",
+      createOcean();
+
+      oceanGroup.visible = true;
+
+      console.log("WATER NORMAL READY");
+      console.log("OCEAN SCENE READY");
+
+      gsap.to(whiteFlash, {
+        opacity: 0,
+        duration: 1.2,
+        ease: "power2.inOut",
+        onComplete: () => {
+          gsap.set(whiteFlash, {
+            visibility: "hidden",
+          });
+
+          gsap.set(oceanCTA, {
+            visibility: "visible",
+            pointerEvents: "auto",
+          });
+
+          gsap.fromTo(
+            oceanCTA,
+            {
+              opacity: 0,
+              scale: 0.95,
+            },
+            {
+              opacity: 1,
+              scale: 1,
+              duration: 1,
+              ease: "power3.out",
+            }
+          );
+        },
+      });
+    } catch (error) {
+      console.error("OCEAN SCENE ERROR", error);
+
+      oceanRevealed = false;
+
+      gsap.to(whiteFlash, {
+        opacity: 0,
+        duration: 0.6,
+        onComplete: () => {
+          gsap.set(whiteFlash, {
+            visibility: "hidden",
+          });
+        },
+      });
     }
-  );
+  });
 }
 
 
