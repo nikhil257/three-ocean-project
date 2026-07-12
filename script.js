@@ -405,9 +405,9 @@ if (
 
 
 camera.lookAt(forwardLookTarget);
+}
 
-  
-  renderer.render(scene, camera);
+renderer.render(scene, camera);
 }
 
 
