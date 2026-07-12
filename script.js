@@ -192,60 +192,6 @@ holeTarget.getWorldPosition(holeFixedPosition);
 
 createOcean();
 
-// OCEAN REVEAL
-
-function revealOcean() {
-  if (oceanRevealed) return;
-
-  oceanRevealed = true;
-
-  const tl = gsap.timeline();
-
-  tl.set(whiteFlash, {
-    visibility: "visible",
-  });
-
-  tl.to(whiteFlash, {
-    opacity: 1,
-    duration: 0.8,
-    ease: "power2.inOut",
-  });
-
-  tl.call(() => {
-    model.visible = false;
-    oceanGroup.visible = true;
-  });
-
-  tl.to(whiteFlash, {
-    opacity: 0,
-    duration: 1.2,
-    ease: "power2.inOut",
-  });
-
-  tl.set(whiteFlash, {
-    visibility: "hidden",
-  });
-
-  tl.set(oceanCTA, {
-    visibility: "visible",
-    pointerEvents: "auto",
-  });
-
-  tl.fromTo(
-    oceanCTA,
-    {
-      opacity: 0,
-      scale: 0.95,
-    },
-    {
-      opacity: 1,
-      scale: 1,
-      duration: 1,
-      ease: "power3.out",
-    }
-  );
-}
-
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
 
@@ -442,6 +388,60 @@ function createOcean() {
   oceanGroup.visible = false;
 
   scene.add(oceanGroup);
+}
+
+// OCEAN REVEAL
+
+function revealOcean() {
+  if (oceanRevealed) return;
+
+  oceanRevealed = true;
+
+  const tl = gsap.timeline();
+
+  tl.set(whiteFlash, {
+    visibility: "visible",
+  });
+
+  tl.to(whiteFlash, {
+    opacity: 1,
+    duration: 0.8,
+    ease: "power2.inOut",
+  });
+
+  tl.call(() => {
+    model.visible = false;
+    oceanGroup.visible = true;
+  });
+
+  tl.to(whiteFlash, {
+    opacity: 0,
+    duration: 1.2,
+    ease: "power2.inOut",
+  });
+
+  tl.set(whiteFlash, {
+    visibility: "hidden",
+  });
+
+  tl.set(oceanCTA, {
+    visibility: "visible",
+    pointerEvents: "auto",
+  });
+
+  tl.fromTo(
+    oceanCTA,
+    {
+      opacity: 0,
+      scale: 0.95,
+    },
+    {
+      opacity: 1,
+      scale: 1,
+      duration: 1,
+      ease: "power3.out",
+    }
+  );
 }
 
 
