@@ -1,4 +1,4 @@
-console.log("THREE OCEAN VERSION 12");
+console.log("THREE OCEAN VERSION 13 - PLANAR REFLECTION");
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -72,6 +72,28 @@ let ocean;
 let waterNormal;
 let oceanRevealed = false;
 
+// PLANAR REFLECTION
+let reflectionCamera;
+let reflectionRenderTarget;
+let reflectionBackground;
+const reflectionTextureMatrix = new THREE.Matrix4();
+const reflectionPlane = new THREE.Plane();
+const reflectionNormal = new THREE.Vector3();
+const reflectionPosition = new THREE.Vector3();
+const cameraWorldPositionReflection = new THREE.Vector3();
+const cameraWorldTargetReflection = new THREE.Vector3();
+const reflectedPosition = new THREE.Vector3();
+const reflectedTarget = new THREE.Vector3();
+const cameraDirectionReflection = new THREE.Vector3();
+const clipPlane = new THREE.Vector4();
+const q = new THREE.Vector4();
+const biasMatrix = new THREE.Matrix4().set(
+  0.5, 0.0, 0.0, 0.5,
+  0.0, 0.5, 0.0, 0.5,
+  0.0, 0.0, 0.5, 0.5,
+  0.0, 0.0, 0.0, 1.0
+);
+
 // camera moves to center to dive in
 let cameraStartPosition;
 let holeFixedPosition;
@@ -111,7 +133,9 @@ Promise.all([glbPromise, hdrPromise])
     scene.environment = envMap;
     scene.environmentIntensity = 0.15;
 
-    hdrTexture.dispose();
+    hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+    reflectionBackground = hdrTexture;
+
     pmremGenerator.dispose();
 
     scene.add(gltf.scene);
@@ -249,6 +273,38 @@ setupCameraScroll();
 function createOcean() {
   oceanGroup = new THREE.Group();
 
+  const reflectionSize = Math.min(
+    1024,
+    Math.max(
+      512,
+      Math.floor(
+        Math.max(
+          wrap.clientWidth,
+          wrap.clientHeight
+        ) * Math.min(window.devicePixelRatio, 2)
+      )
+    )
+  );
+
+  reflectionRenderTarget =
+    new THREE.WebGLRenderTarget(
+      reflectionSize,
+      reflectionSize,
+      {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.HalfFloatType,
+        depthBuffer: true,
+      }
+    );
+
+  reflectionRenderTarget.texture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  reflectionCamera = camera.clone();
+  reflectionCamera.parent = null;
+
   const oceanGeometry = new THREE.PlaneGeometry(
     1,
     1,
@@ -261,11 +317,17 @@ function createOcean() {
       uNormalTexture: {
         value: waterNormal,
       },
+      uTexture: {
+        value: reflectionRenderTarget.texture,
+      },
+      uTextureMatrix: {
+        value: reflectionTextureMatrix,
+      },
       uTime: {
         value: 0,
       },
       uColor: {
-        value: new THREE.Color(0x7fcfff),
+        value: new THREE.Color(8374783),
       },
       uLightPos: {
         value: new THREE.Vector3(
@@ -289,6 +351,12 @@ function createOcean() {
       uSpecularColor: {
         value: new THREE.Color(40959),
       },
+      uReflectionDistortion: {
+        value: 1.87,
+      },
+      uReflectionStrength: {
+        value: 0.342,
+      },
       uNoiseScale: {
         value: 20.9,
       },
@@ -307,19 +375,22 @@ function createOcean() {
     },
 
     vertexShader: `
+      varying vec4 vMirrorCoord;
       varying vec4 vWorldPosition;
 
       uniform float uTime;
       uniform float uAmplitude;
       uniform float uFrequency;
       uniform float uWaveSpeed;
+      uniform mat4 uTextureMatrix;
 
       void main() {
         vec3 transformedPosition = position;
 
-        vWorldPosition =
+        vWorldPosition.xyz = (
           modelMatrix *
-          vec4(transformedPosition, 1.0);
+          vec4(transformedPosition, 1.0)
+        ).xyz;
 
         transformedPosition.z += cos(
           (vWorldPosition.z - vWorldPosition.x)
@@ -327,22 +398,30 @@ function createOcean() {
           + uTime * uWaveSpeed
         ) * uAmplitude;
 
-        vWorldPosition =
+        vMirrorCoord =
           modelMatrix *
           vec4(transformedPosition, 1.0);
 
-        gl_Position =
-          projectionMatrix *
+        vWorldPosition = vMirrorCoord;
+        vMirrorCoord =
+          uTextureMatrix * vMirrorCoord;
+
+        vec4 mvPosition =
           modelViewMatrix *
           vec4(transformedPosition, 1.0);
+
+        gl_Position =
+          projectionMatrix * mvPosition;
       }
     `,
 
     fragmentShader: `
+      varying vec4 vMirrorCoord;
       varying vec4 vWorldPosition;
 
       uniform vec3 uColor;
       uniform sampler2D uNormalTexture;
+      uniform sampler2D uTexture;
       uniform float uTime;
       uniform vec3 uLightPos;
       uniform float uLightIntensity;
@@ -350,6 +429,8 @@ function createOcean() {
       uniform float uDiffuse;
       uniform vec3 uDiffuseColor;
       uniform vec3 uSpecularColor;
+      uniform float uReflectionDistortion;
+      uniform float uReflectionStrength;
       uniform float uNoiseScale;
       uniform float uNoiseSpeed;
 
@@ -448,6 +529,26 @@ function createOcean() {
           specularLight
         );
 
+        float distanceToEye =
+          max(length(worldToEye), 0.001);
+
+        vec2 distortion =
+          surfaceNormal.xz *
+          (0.001 + 1.0 / distanceToEye) *
+          uReflectionDistortion;
+
+        vec2 reflectionUv =
+          vMirrorCoord.xy /
+          vMirrorCoord.w +
+          distortion;
+
+        vec3 reflectionSample = vec3(
+          texture2D(
+            uTexture,
+            reflectionUv
+          )
+        ) * uReflectionStrength;
+
         float theta = max(
           dot(eyeDirection, surfaceNormal),
           0.0
@@ -466,16 +567,13 @@ function createOcean() {
             dot(surfaceNormal, eyeDirection)
           ) * baseColor;
 
-        vec3 fakeReflection =
-          vec3(0.35, 0.65, 0.85);
-
         vec3 albedo = mix(
           lightColor * diffuseLight * 0.3 +
           scatter,
 
           vec3(0.1) +
-          fakeReflection * 0.9 +
-          fakeReflection * specularLight,
+          reflectionSample * 0.9 +
+          reflectionSample * specularLight,
 
           reflectance
         );
@@ -503,11 +601,180 @@ function createOcean() {
   );
 
   oceanGroup.add(ocean);
-
   oceanGroup.visible = false;
 
   scene.add(oceanGroup);
+
+  ocean.updateMatrixWorld(true);
+
+  console.log("PLANAR REFLECTION OCEAN READY");
 }
+
+function updateOceanReflection() {
+  if (
+    !ocean ||
+    !reflectionCamera ||
+    !reflectionRenderTarget ||
+    !camera
+  ) {
+    return;
+  }
+
+  ocean.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+
+  reflectionPosition.setFromMatrixPosition(
+    ocean.matrixWorld
+  );
+
+  reflectionNormal
+    .set(0, 0, 1)
+    .transformDirection(ocean.matrixWorld)
+    .normalize();
+
+  camera.getWorldPosition(
+    cameraWorldPositionReflection
+  );
+
+  camera.getWorldDirection(
+    cameraDirectionReflection
+  );
+
+  cameraWorldTargetReflection
+    .copy(cameraWorldPositionReflection)
+    .add(cameraDirectionReflection);
+
+  reflectedPosition
+    .copy(cameraWorldPositionReflection)
+    .sub(reflectionPosition)
+    .reflect(reflectionNormal)
+    .add(reflectionPosition);
+
+  reflectedTarget
+    .copy(cameraWorldTargetReflection)
+    .sub(reflectionPosition)
+    .reflect(reflectionNormal)
+    .add(reflectionPosition);
+
+  reflectionCamera.position.copy(
+    reflectedPosition
+  );
+
+  reflectionCamera.up
+    .set(0, 1, 0)
+    .reflect(reflectionNormal);
+
+  reflectionCamera.lookAt(reflectedTarget);
+
+  reflectionCamera.near = camera.near;
+  reflectionCamera.far = camera.far;
+  reflectionCamera.aspect = camera.aspect;
+  reflectionCamera.fov = camera.fov;
+
+  reflectionCamera.updateMatrixWorld(true);
+  reflectionCamera.projectionMatrix.copy(
+    camera.projectionMatrix
+  );
+
+  reflectionPlane.setFromNormalAndCoplanarPoint(
+    reflectionNormal,
+    reflectionPosition
+  );
+
+  reflectionPlane.applyMatrix4(
+    reflectionCamera.matrixWorldInverse
+  );
+
+  clipPlane.set(
+    reflectionPlane.normal.x,
+    reflectionPlane.normal.y,
+    reflectionPlane.normal.z,
+    reflectionPlane.constant
+  );
+
+  const projectionMatrix =
+    reflectionCamera.projectionMatrix;
+
+  q.x =
+    (Math.sign(clipPlane.x) +
+      projectionMatrix.elements[8]) /
+    projectionMatrix.elements[0];
+
+  q.y =
+    (Math.sign(clipPlane.y) +
+      projectionMatrix.elements[9]) /
+    projectionMatrix.elements[5];
+
+  q.z = -1.0;
+
+  q.w =
+    (1.0 + projectionMatrix.elements[10]) /
+    projectionMatrix.elements[14];
+
+  clipPlane.multiplyScalar(
+    2.0 / clipPlane.dot(q)
+  );
+
+  projectionMatrix.elements[2] =
+    clipPlane.x;
+
+  projectionMatrix.elements[6] =
+    clipPlane.y;
+
+  projectionMatrix.elements[10] =
+    clipPlane.z + 1.0 - 0.003;
+
+  projectionMatrix.elements[14] =
+    clipPlane.w;
+
+  reflectionTextureMatrix
+    .copy(biasMatrix)
+    .multiply(
+      reflectionCamera.projectionMatrix
+    )
+    .multiply(
+      reflectionCamera.matrixWorldInverse
+    );
+
+  const currentRenderTarget =
+    renderer.getRenderTarget();
+
+  const currentBackground = scene.background;
+  const currentXrEnabled = renderer.xr.enabled;
+  const currentShadowAutoUpdate =
+    renderer.shadowMap.autoUpdate;
+
+  ocean.visible = false;
+
+  scene.background = reflectionBackground;
+
+  renderer.xr.enabled = false;
+  renderer.shadowMap.autoUpdate = false;
+
+  renderer.setRenderTarget(
+    reflectionRenderTarget
+  );
+
+  renderer.clear();
+
+  renderer.render(
+    scene,
+    reflectionCamera
+  );
+
+  renderer.setRenderTarget(
+    currentRenderTarget
+  );
+
+  renderer.xr.enabled = currentXrEnabled;
+  renderer.shadowMap.autoUpdate =
+    currentShadowAutoUpdate;
+
+  scene.background = currentBackground;
+
+  ocean.visible = true;
+}
+
 
 // OCEAN REVEAL
 
@@ -782,6 +1049,24 @@ window.addEventListener("resize", () => {
   const height = wrap.clientHeight;
 
   renderer.setSize(width, height);
+
+  if (reflectionRenderTarget) {
+    const reflectionSize = Math.min(
+      1024,
+      Math.max(
+        512,
+        Math.floor(
+          Math.max(width, height) *
+          Math.min(window.devicePixelRatio, 2)
+        )
+      )
+    );
+
+    reflectionRenderTarget.setSize(
+      reflectionSize,
+      reflectionSize
+    );
+  }
 
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
