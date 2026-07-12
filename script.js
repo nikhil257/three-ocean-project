@@ -36,16 +36,9 @@ ktx2Loader.setTranscoderPath(
 
 ktx2Loader.detectSupport(renderer);
 
-ktx2Loader
-  .loadAsync(
-    "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
-  )
-  .then((texture) => {
-    console.log("WATER NORMAL LOADED", texture);
-  })
-  .catch((error) => {
-    console.error("WATER NORMAL ERROR", error);
-  });
+const waterNormalPromise = ktx2Loader.loadAsync(
+  "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/water-normal.ktx2"
+);
 
 
 let camera;
@@ -86,8 +79,11 @@ const hdrPromise = rgbeLoader.loadAsync(
   "https://raw.githubusercontent.com/nikhil257/three-ocean-project/main/studio-background.hdr"
 );
 
-Promise.all([glbPromise, hdrPromise])
-  .then(([gltf, hdrTexture]) => {
+Promise.all([
+  glbPromise,
+  hdrPromise,
+  waterNormalPromise,
+]).then(([gltf, hdrTexture, waterNormal]) => {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
     const envMap =
@@ -212,7 +208,11 @@ model.updateMatrixWorld(true);
 holeFixedPosition = new THREE.Vector3();
 holeTarget.getWorldPosition(holeFixedPosition);
 
-createOcean();
+  waterNormal.wrapS = THREE.RepeatWrapping;
+waterNormal.wrapT = THREE.RepeatWrapping;
+waterNormal.needsUpdate = true;
+
+createOcean(waterNormal);
 
 model.position.y = model.userData.startY - 0.6;
 model.updateMatrixWorld(true);
